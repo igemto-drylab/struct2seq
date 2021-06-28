@@ -76,11 +76,13 @@ for e in range(args.epochs):
 
         optimizer.zero_grad()
         log_probs = model(X, S, lengths, mask)
-        _, loss_av_smoothed = loss_smoothed(S, log_probs, mask, weight=args.smoothing)
+        # _, loss_av_smoothed = loss_smoothed(S, log_probs, mask, weight=args.smoothing)
+        _, loss_av_smoothed = loss_jtvae(S, log_probs, mask)
         loss_av_smoothed.backward()
         optimizer.step()
 
-        loss, loss_av = loss_nll(S, log_probs, mask)
+        # loss, loss_av = loss_nll(S, log_probs, mask)
+        loss, loss_av = loss_jtvae(S, log_probs, mask)
 
         # Timing
         elapsed_batch = time.time() - start_batch
@@ -125,7 +127,9 @@ for e in range(args.epochs):
         for _, batch in enumerate(loader_validation):
             X, S, mask, lengths = featurize(batch, device, shuffle_fraction=args.shuffle)
             log_probs = model(X, S, lengths, mask)
-            loss, loss_av = loss_nll(S, log_probs, mask)
+            # loss, loss_av = loss_nll(S, log_probs, mask)
+            loss, loss_av = loss_jtvae(S, log_probs, mask)
+
 
             # Accumulate
             validation_sum += torch.sum(loss * mask).cpu().data.numpy()
@@ -173,7 +177,9 @@ with torch.no_grad():
     for _, batch in enumerate(loader_test):
         X, S, mask, lengths = featurize(batch, device)
         log_probs = model(X, S, lengths, mask)
-        loss, loss_av = loss_nll(S, log_probs, mask)
+        # loss, loss_av = loss_nll(S, log_probs, mask)
+        loss, loss_av = loss_jtvae(S, log_probs, mask)
+
         # Accumulate
         test_sum += torch.sum(loss * mask).cpu().data.numpy()
         test_weights += torch.sum(mask).cpu().data.numpy()

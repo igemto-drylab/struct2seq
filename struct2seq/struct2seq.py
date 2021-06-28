@@ -50,7 +50,11 @@ class Struct2Seq(nn.Module):
             layer(hidden_dim, hidden_dim*3, dropout=dropout)
             for _ in range(num_decoder_layers)
         ])
-        self.W_out = nn.Linear(hidden_dim, num_letters, bias=True)
+        # self.W_out = nn.Linear(hidden_dim, num_letters, bias=True)
+        self.W_out = nn.Sequential(
+            nn.Linear(hidden_dim, 2, bias=True),
+            nn.Tanh(),
+        )
 
         # Initialization
         for p in self.parameters():
