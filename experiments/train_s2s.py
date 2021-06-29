@@ -59,6 +59,7 @@ start_train = time.time()
 epoch_losses_train, epoch_losses_valid = [], []
 epoch_checkpoints = []
 total_step = 0
+train_losses = []
 for e in range(args.epochs):
     # Training epoch
     model.train()
@@ -91,7 +92,7 @@ for e in range(args.epochs):
         elapsed_train = time.time() - start_train
         total_step += 1
         print(total_step, elapsed_train, np.exp(loss_av.cpu().data.numpy()), np.exp(loss_av_smoothed.cpu().data.numpy()))
-
+        train_losses.append(np.exp(loss_av.cpu().data.numpy()))
         if False:
             # Test reproducibility
             log_probs_sequential = model.forward_sequential(X, S, lengths, mask)
@@ -120,7 +121,7 @@ for e in range(args.epochs):
             }, base_folder + 'checkpoints/epoch{}_step{}.pt'.format(e+1, total_step))
 
     # Train image
-    plot_log_probs(log_probs, total_step, folder='{}plots/train_{}_'.format(base_folder, batch[0]['name']))
+    # plot_log_probs(log_probs, total_step, folder='{}plots/train_{}_'.format(base_folder, batch[0]['name']))
 
     # Validation epoch
     model.eval()
@@ -146,7 +147,7 @@ for e in range(args.epochs):
     print('Perplexity\tTrain:{}\t\tValidation:{}'.format(train_perplexity, validation_perplexity))
 
     # Validation image
-    plot_log_probs(log_probs, total_step, folder='{}plots/valid_{}_'.format(base_folder, batch[0]['name']))
+    # plot_log_probs(log_probs, total_step, folder='{}plots/valid_{}_'.format(base_folder, batch[0]['name']))
 
     with open(logfile, 'a') as f:
         f.write('{}\t{}\t{}\n'.format(e, train_perplexity, validation_perplexity))
@@ -163,6 +164,9 @@ for e in range(args.epochs):
     epoch_losses_valid.append(validation_perplexity)
     epoch_losses_train.append(train_perplexity)
     epoch_checkpoints.append(checkpoint_filename)
+
+plt.plot(np.array(train_losses))
+plt.savefig("/content/losses.png", dpi=350)
 
 # Determine best model via early stopping on validation
 best_model_idx = np.argmin(epoch_losses_valid).item()

@@ -18,13 +18,14 @@ from argparse import ArgumentParser
 
 from sklearn.decomposition import PCA
 
-pca = PCA(n_components=2)
+EMBDIM = 20
+pca = PCA(n_components=EMBDIM)
 embeds = np.loadtxt("aa.txt")
 pca.fit(embeds)
 JTVAE = pca.transform(embeds)
 JTVAE = (JTVAE - np.min(JTVAE, axis=0)) / (np.max(JTVAE, axis=0) - np.min(JTVAE, axis=0))
 JTVAE = 2*JTVAE - 1
-JTVAE = torch.from_numpy(JTVAE)
+JTVAE = torch.from_numpy(JTVAE).type(torch.cuda.FloatTensor)
 
 def get_args():
     parser = ArgumentParser(description='Structure to sequence modeling')
@@ -183,18 +184,24 @@ def loss_nll(S, log_probs, mask):
 
 def get_jtvae(S):
     """Get list of JT-VAE embeddings from sequence"""
-    emb = torch.zeros(len(S), 2)
-    for i, tok in enumerate(S):
-        emb[i] = JTVAE[tok]
+    B, L = S.shape
+    emb = torch.zeros(B, L, EMBDIM)
+    for i in range(L):
+        idx = S[:, i].reshape(-1, 1).repeat(1, EMBDIM)
+        emb[:, i, :] = JTVAE.gather(0, idx)
     return emb
 
 def loss_jtvae(S, emb_out, mask):
     """Same idea as loss_nll but for predicting JT-VAE 2D embeddings"""
-    criterion = torch.nn.MSELoss(reduction='none')
-    emb_tgt = get_jtvae(S.contiguous().view(-1))
-    loss = criterion(
+    # criterion = torch.nn.MSELoss(reduction='none')
+    criterion = torch.nn.CosineSimilarity(dim=1)
+    emb_tgt = get_jtvae(S.contiguous()).view(-1, EMBDIM)
+    # loss = criterion(
+    #     emb_out.contiguous().view(-1, emb_out.size(-1)), emb_tgt
+    # ).sum(dim=1).view(mask.size())
+    loss = - criterion(
         emb_out.contiguous().view(-1, emb_out.size(-1)), emb_tgt
-    ).sum(dim=1).view(mask.size())
+    ).view(mask.size())
     loss_av = torch.sum(loss * mask) / torch.sum(mask)
     return loss, loss_av
 

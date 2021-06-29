@@ -74,11 +74,15 @@ def _scores(S, log_probs, mask):
 
 def _jtvae_scores(S, emb_out, mask):
     """Same as _scores but for JT-VAE"""
-    criterion = torch.nn.MSELoss(reduction='none')
-    loss = criterion(
-        emb_out.contiguous().view(-1,emb_out.size(-1)),
-        S.contiguous().view(-1)
-    ).sum(dim=1).view(mask.size())
+    # criterion = torch.nn.MSELoss(reduction='none')
+    criterion = torch.nn.CosineSimilarity(dim=1)
+    emb_tgt = get_jtvae(S.contiguous()).view(-1, EMBDIM)
+    # loss = criterion(
+    #     emb_out.contiguous().view(-1, emb_out.size(-1)), emb_tgt
+    # ).sum(dim=1).view(mask.size())
+    loss = - criterion(
+        emb_out.contiguous().view(-1, emb_out.size(-1)), emb_tgt
+    ).view(mask.size())
     scores = torch.sum(loss * mask, dim=-1) / torch.sum(mask, dim=-1)
     return scores
 
@@ -119,7 +123,9 @@ with torch.no_grad():
         batch_clones = [copy.deepcopy(protein) for i in range(BATCH_COPIES)]
         X, S, mask, lengths = featurize(batch_clones, device)
 
-        log_probs = model(X, S, lengths, mask)
+        emb = get_jtvae(S)
+        # log_probs = model(X, S, lengths, mask)
+        log_probs = model(X, emb, lengths, mask)
         scores = _jtvae_scores(S, log_probs, mask)
         native_score = scores.cpu().data.numpy()[0]
         print(scores)
@@ -135,7 +141,9 @@ with torch.no_grad():
                     S_sample = model.sample(X, lengths, mask, temperature=temp)
 
                     # Compute scores
-                    log_probs = model(X, S_sample, lengths, mask)
+                    emb = get_jtvae(S_sample)
+                    # log_probs = model(X, S_sample, lengths, mask)
+                    log_probs = model(X, emb, lengths, mask)
                     scores = _jtvae_scores(S_sample, log_probs, mask)
                     scores = scores.cpu().data.numpy()
 

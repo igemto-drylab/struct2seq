@@ -14,7 +14,8 @@ from .protein_features import ProteinFeatures
 from sklearn.decomposition import PCA
 from sklearn.neighbors import KNeighborsClassifier
 
-pca = PCA(n_components=2)
+EMBDIM = 20
+pca = PCA(n_components=EMBDIM)
 embeds = np.loadtxt("aa.txt")
 pca.fit(embeds)
 JTVAE = pca.transform(embeds)
