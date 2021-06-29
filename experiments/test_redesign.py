@@ -33,7 +33,6 @@ from utils import *
 # --cuda --features full --restore log/h128_full_ollikainen/epoch48_step22896.pt --file_data ../data/ollikainen/ollikainen_set.jsonl --file_splits ../data/ollikainen/ollikainen_benchmark.json
 
 args, device, model = setup_cli_model()
-criterion = torch.nn.NLLLoss(reduction='none')
 
 # Hard code test structures
 test_names = ['4eb0.A', '6eqd.A']
@@ -63,22 +62,23 @@ def _plot_log_probs(log_probs, total_step):
     plt.savefig(base_folder + 'probs{}.pdf'.format(total_step))
     return
 
-def _loss(S, log_probs, mask):
-    """ Negative log probabilities """
-    loss = criterion(
-        log_probs.contiguous().view(-1,log_probs.size(-1)),
-        S.contiguous().view(-1)
-    ).view(S.size())
-    loss_av = torch.sum(loss * mask) / torch.sum(mask)
-    return loss, loss_av
-
-
 def _scores(S, log_probs, mask):
     """ Negative log probabilities """
+    criterion = torch.nn.NLLLoss(reduction='none')
     loss = criterion(
         log_probs.contiguous().view(-1,log_probs.size(-1)),
         S.contiguous().view(-1)
     ).view(S.size())
+    scores = torch.sum(loss * mask, dim=-1) / torch.sum(mask, dim=-1)
+    return scores
+
+def _jtvae_scores(S, emb_out, mask):
+    """Same as _scores but for JT-VAE"""
+    criterion = torch.nn.MSELoss(reduction='none')
+    loss = criterion(
+        emb_out.contiguous().view(-1,emb_out.size(-1)),
+        S.contiguous().view(-1)
+    ).sum(dim=1).view(mask.size())
     scores = torch.sum(loss * mask, dim=-1) / torch.sum(mask, dim=-1)
     return scores
 
