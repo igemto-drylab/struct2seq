@@ -11,6 +11,25 @@ import torch.nn.functional as F
 from .self_attention import *
 from .protein_features import ProteinFeatures
 
+from sklearn.decomposition import PCA
+from sklearn.neighbors import KNeighborsClassifier
+
+pca = PCA(n_components=2)
+embeds = np.loadtxt("aa.txt")
+pca.fit(embeds)
+JTVAE = pca.transform(embeds)
+JTVAE = (JTVAE - np.min(JTVAE, axis=0)) / (np.max(JTVAE, axis=0) - np.min(JTVAE, axis=0))
+JTVAE = 2*JTVAE - 1
+JTVAE = torch.from_numpy(JTVAE)
+
+neigh = KNeighborsClassifier(n_neighbors=1)
+neigh.fit(JTVAE, range(len(JTVAE)))
+
+def _jtvae_to_seq(emb):
+    alphabet = "ARNDCQEGHILKMFPSTWYV"
+    S = neigh.predict(emb)
+    seq = ''.join([alphabet[c] for c in S.tolist()])
+    return seq
 
 class Struct2Seq(nn.Module):
     def __init__(self, num_letters, node_features, edge_features,
@@ -35,7 +54,8 @@ class Struct2Seq(nn.Module):
         # Embedding layers
         self.W_v = nn.Linear(node_features, hidden_dim, bias=True)
         self.W_e = nn.Linear(edge_features, hidden_dim, bias=True)
-        self.W_s = nn.Embedding(vocab, hidden_dim)
+        # self.W_s = nn.Embedding(vocab, hidden_dim)
+        self.W_s = nn.Linear(2, hidden_dim)
         layer = TransformerLayer if not use_mpnn else MPNNLayer
 
         # Encoder layers
@@ -214,11 +234,16 @@ class Struct2Seq(nn.Module):
 
             # Sampling step
             h_V_t = h_V_stack[-1][:,t,:]
-            logits = self.W_out(h_V_t) / temperature
-            probs = F.softmax(logits, dim=-1)
-            S_t = torch.multinomial(probs, 1).squeeze(-1)
+            # logits = self.W_out(h_V_t) / temperature
+            # probs = F.softmax(logits, dim=-1)
+            # S_t = torch.multinomial(probs, 1).squeeze(-1)
 
             # Update
-            h_S[:,t,:] = self.W_s(S_t)
+            # h_S[:,t,:] = self.W_s(S_t)
+            # S[:,t] = S_t
+
+            emb_out = self.W_out(h_V_t)
+            S_t = _jtvae_to_seq(emb_out)
+            h_S[:,t,:] = self.W_s(emb_out)
             S[:,t] = S_t
         return S

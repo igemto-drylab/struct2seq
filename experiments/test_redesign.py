@@ -120,7 +120,7 @@ with torch.no_grad():
         X, S, mask, lengths = featurize(batch_clones, device)
 
         log_probs = model(X, S, lengths, mask)
-        scores = _scores(S, log_probs, mask)
+        scores = _jtvae_scores(S, log_probs, mask)
         native_score = scores.cpu().data.numpy()[0]
         print(scores)
 
@@ -136,7 +136,7 @@ with torch.no_grad():
 
                     # Compute scores
                     log_probs = model(X, S_sample, lengths, mask)
-                    scores = _scores(S_sample, log_probs, mask)
+                    scores = _jtvae_scores(S_sample, log_probs, mask)
                     scores = scores.cpu().data.numpy()
 
                     for b_ix in range(BATCH_COPIES):
