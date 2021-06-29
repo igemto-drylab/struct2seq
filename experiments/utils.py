@@ -181,12 +181,12 @@ def loss_nll(S, log_probs, mask):
     loss_av = torch.sum(loss * mask) / torch.sum(mask)
     return loss, loss_av
 
-def get_jtvae(seqint):
+def get_jtvae(S):
     """Get list of JT-VAE embeddings from sequence"""
-    S = torch.zeros(len(seqint), 2)
-    for i, tok in enumerate(seqint):
-        S[i] = JTVAE[tok]
-    return S
+    emb = torch.zeros(len(S), 2)
+    for i, tok in enumerate(S):
+        emb[i] = JTVAE[tok]
+    return emb
 
 def loss_jtvae(S, emb_out, mask):
     """Same idea as loss_nll but for predicting JT-VAE 2D embeddings"""
