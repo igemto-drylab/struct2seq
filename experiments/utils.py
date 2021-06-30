@@ -197,12 +197,23 @@ def loss_jtvae(S, emb_out, mask):
     # criterion = torch.nn.MSELoss(reduction='none')
     criterion = torch.nn.CosineSimilarity(dim=1)
     emb_tgt = get_jtvae(S.contiguous()).view(-1, EMBDIM)
+
+    # Cross entropy loss
     # loss = criterion(
     #     emb_out.contiguous().view(-1, emb_out.size(-1)), emb_tgt
     # ).sum(dim=1).view(mask.size())
-    loss = - criterion(
+
+    # Cosine similarity loss
+    # loss = - criterion(
+    #     emb_out.contiguous().view(-1, emb_out.size(-1)), emb_tgt
+    # ).view(mask.size())
+    # loss_av = torch.sum(loss * mask) / torch.sum(mask)
+
+    # Arccos loss
+    loss = criterion(
         emb_out.contiguous().view(-1, emb_out.size(-1)), emb_tgt
     ).view(mask.size())
+    loss = torch.arccos(loss)
     loss_av = torch.sum(loss * mask) / torch.sum(mask)
     return loss, loss_av
 
