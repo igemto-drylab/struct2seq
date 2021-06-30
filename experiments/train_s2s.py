@@ -113,7 +113,7 @@ for e in range(args.epochs):
             tps_features = mask.cpu().data.numpy().sum() / elapsed_featurize
             print('Tokens/s (train): {:.2f}, Tokens/s (features): {:.2f}, Mask efficiency: {:.2f}, GPU max allocated: {:.2f}'.format(tps_train, tps_features, utilize_mask, utilize_gpu))
 
-        if total_step % 10 == 0:
+        if total_step % 1000 == 0:
             torch.save({
                 'epoch': e,
                 'model_state_dict': model.state_dict(),

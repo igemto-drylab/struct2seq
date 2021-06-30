@@ -23,8 +23,9 @@ pca = PCA(n_components=EMBDIM)
 embeds = np.loadtxt("aa.txt")
 pca.fit(embeds)
 JTVAE = pca.transform(embeds)
+
+# Normalize between 0 and 1, ensure no negative entries
 JTVAE = (JTVAE - np.min(JTVAE, axis=0)) / (np.max(JTVAE, axis=0) - np.min(JTVAE, axis=0))
-JTVAE = 2*JTVAE - 1
 JTVAE = torch.from_numpy(JTVAE).type(torch.cuda.FloatTensor)
 
 def get_args():
