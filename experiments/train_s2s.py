@@ -91,8 +91,10 @@ for e in range(args.epochs):
         elapsed_batch = time.time() - start_batch
         elapsed_train = time.time() - start_train
         total_step += 1
-        print(total_step, elapsed_train, np.exp(loss_av.cpu().data.numpy()), np.exp(loss_av_smoothed.cpu().data.numpy()))
-        train_losses.append(np.exp(loss_av.cpu().data.numpy()))
+        # print(total_step, elapsed_train, np.exp(loss_av.cpu().data.numpy()), np.exp(loss_av_smoothed.cpu().data.numpy()))
+        # train_losses.append(np.exp(loss_av.cpu().data.numpy()))
+        print(total_step, elapsed_train, loss_av_smoothed.cpu().data.numpy())
+        train_losses.append(loss_av_smoothed.cpu().data.numpy())
         if False:
             # Test reproducibility
             log_probs_sequential = model.forward_sequential(X, S, lengths, mask)
