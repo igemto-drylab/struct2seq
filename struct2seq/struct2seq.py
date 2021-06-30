@@ -22,6 +22,7 @@ JTVAE = pca.transform(embeds)
 JTVAE = (JTVAE - np.min(JTVAE, axis=0)) / (np.max(JTVAE, axis=0) - np.min(JTVAE, axis=0))
 JTVAE = 2*JTVAE - 1
 JTVAE = torch.from_numpy(JTVAE)
+JTVAE = JTVAE / np.linalg.norm(JTVAE, axis=1)
 
 neigh = KNeighborsClassifier(n_neighbors=1)
 neigh.fit(JTVAE, range(len(JTVAE)))
@@ -56,7 +57,7 @@ class Struct2Seq(nn.Module):
         self.W_v = nn.Linear(node_features, hidden_dim, bias=True)
         self.W_e = nn.Linear(edge_features, hidden_dim, bias=True)
         # self.W_s = nn.Embedding(vocab, hidden_dim)
-        self.W_s = nn.Linear(2, hidden_dim)
+        self.W_s = nn.Linear(EMBDIM, hidden_dim)
         layer = TransformerLayer if not use_mpnn else MPNNLayer
 
         # Encoder layers
@@ -73,7 +74,7 @@ class Struct2Seq(nn.Module):
         ])
         # self.W_out = nn.Linear(hidden_dim, num_letters, bias=True)
         self.W_out = nn.Sequential(
-            nn.Linear(hidden_dim, 2, bias=True),
+            nn.Linear(hidden_dim, EMBDIM, bias=True),
             nn.Tanh(),
         )
 
@@ -138,8 +139,10 @@ class Struct2Seq(nn.Module):
             h_V = layer(h_V, h_ESV, mask_V=mask)
 
         logits = self.W_out(h_V) 
-        log_probs = F.log_softmax(logits, dim=-1)
-        return log_probs
+        # log_probs = F.log_softmax(logits, dim=-1)
+        # return log_probs
+
+        return logits / torch.norm(logits, dim=-1, keepdim=True)
 
     def forward_sequential(self, X, S, L, mask=None):
         """ Compute the transformer layer sequentially, for purposes of debugging
