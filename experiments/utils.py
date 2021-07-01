@@ -204,17 +204,17 @@ def loss_jtvae(S, emb_out, mask):
     # ).sum(dim=1).view(mask.size())
 
     # Cosine similarity loss
-    # loss = - criterion(
-    #     emb_out.contiguous().view(-1, emb_out.size(-1)), emb_tgt
-    # ).view(mask.size())
-    # loss_av = torch.sum(loss * mask) / torch.sum(mask)
-
-    # Arccos loss
-    loss = criterion(
+    loss = - criterion(
         emb_out.contiguous().view(-1, emb_out.size(-1)), emb_tgt
     ).view(mask.size())
-    loss = torch.arccos(loss)
     loss_av = torch.sum(loss * mask) / torch.sum(mask)
+
+    # Arccos loss
+    # loss = criterion(
+    #     emb_out.contiguous().view(-1, emb_out.size(-1)), emb_tgt
+    # ).view(mask.size())
+    # loss = torch.arccos(loss)
+    # loss_av = torch.sum(loss * mask) / torch.sum(mask)
     return loss, loss_av
 
 def loss_smoothed(S, log_probs, mask, weight=0.1):
