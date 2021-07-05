@@ -33,6 +33,10 @@ def _jtvae_to_seq(emb):
     seq = ''.join([alphabet[c] for c in S.tolist()])
     return seq
 
+def _jtvae_to_index(emb):
+    S = neigh.predict(emb)
+    return S.flatten()
+
 class Struct2Seq(nn.Module):
     def __init__(self, num_letters, node_features, edge_features,
         hidden_dim, num_encoder_layers=3, num_decoder_layers=3,
@@ -87,7 +91,7 @@ class Struct2Seq(nn.Module):
         N_nodes = E_idx.size(1)
         ii = torch.arange(N_nodes)
         ii = ii.view((1, -1, 1))
-        mask = E_idx - ii < 0
+        mask = (E_idx - ii) < 0
         mask = mask.type(torch.float32)
 
         # Debug 
@@ -98,6 +102,16 @@ class Struct2Seq(nn.Module):
         # plt.imshow(mask.data.numpy()[0,:,:])
         # plt.show()
         return mask
+
+    # Only mask one index
+    def bidirectional_mask(self, E_idx):
+        N_nodes = E_idx.size(1)
+        ii = torch.arange(N_nodes)
+        ii = ii.view((1, -1, 1))
+        mask = E_idx == ii
+        mask = mask.type(torch.float32)
+        return mask
+
 
     def forward(self, X, S, L, mask):
         """ Graph-conditioned sequence model """
@@ -159,7 +173,8 @@ class Struct2Seq(nn.Module):
             h_V = layer(h_V, h_EV, mask_V=mask, mask_attend=mask_attend)
         
         # Decoder alternates masked self-attention
-        mask_attend = self._autoregressive_mask(E_idx).unsqueeze(-1)
+        # mask_attend = self._autoregressive_mask(E_idx).unsqueeze(-1)
+        mask_attend = self.bidirectional_mask(E_idx).unsqueeze(-1)
         mask_1D = mask.view([mask.size(0), mask.size(1), 1, 1])
         mask_bw = mask_1D * mask_attend
         mask_fw = mask_1D * (1. - mask_attend)
@@ -195,7 +210,10 @@ class Struct2Seq(nn.Module):
             # S[:,t] = S_t
 
             emb_out = self.W_out(h_V_t)
-            S_t = _jtvae_to_seq(emb_out)
+            
             h_S[:,t,:] = self.W_s(emb_out)
+            S_t = _jtvae_to_index(emb_out)
+            S_t = torch.from_numpy(S_t).type(torch.LongTensor)
             S[:,t] = S_t
+            
         return S

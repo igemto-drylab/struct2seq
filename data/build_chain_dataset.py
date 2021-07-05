@@ -1,4 +1,6 @@
 import os, time, gzip, json
+
+from msgpack.exceptions import OutOfData
 from mmtf_util import *
 from collections import defaultdict
 
@@ -26,15 +28,21 @@ cath_domain_file = 'cath/cath-domain-list.txt'
 download_cached(cath_domain_url, cath_domain_file)
 
 # parse a chain_set with only those structures under the 3.40.50.1820 CATH label
-chain_set = []
-with open(cath_domain_file,'r') as f:
-    lines = [line.strip() for line in f if not line.startswith('#')]
-    for line in lines:
-        entries = line.split()
-        cath_id, cath_node = entries[0], '.'.join(entries[1:5])
-        if cath_node == "3.40.50.1820":
-            chain_set.append((cath_id[:4], cath_id[4]))
-chain_set = sorted(chain_set)
+# chain_set = []
+# with open(cath_domain_file,'r') as f:
+#     lines = [line.strip() for line in f if not line.startswith('#')]
+#     for line in lines:
+#         entries = line.split()
+#         cath_id, cath_node = entries[0], '.'.join(entries[1:5])
+#         if cath_node == "3.40.50.1820":
+#             chain_set.append((cath_id[:4], cath_id[4]))
+# chain_set = sorted(chain_set)
+
+# build a chain_set with structures in the sriracha_pdbs.csv file
+
+with open('cath/sriracha_pdbs.csv','r') as f:
+    pdbs = f.readline().strip().split(",")
+chain_set = [(pdb, 'A') for pdb in pdbs]
 
 # CATH topologies
 cath_nodes = defaultdict(list)
@@ -68,7 +76,8 @@ for chain_ix, (pdb, chain) in enumerate(chain_set):
     except Exception as e:
         print(e)
 
-outfile = 'chain_set.jsonl'
+# outfile = 'chain_set.jsonl'
+outfile = 'sriracha_set.jsonl'
 with open(outfile, 'w') as f:
     for entry in dataset:
         f.write(json.dumps(entry) + '\n')

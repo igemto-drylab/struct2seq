@@ -35,12 +35,22 @@ from utils import *
 args, device, model = setup_cli_model()
 
 # Hard code test structures
-test_names = ['4eb0.A', '6eqd.A']
+# test_names = ['4eb0.A', '6eqd.A']
+with open("../data/cath/sriracha_pdbs.csv", 'r') as f:
+    pdbs = f.readline().strip().split(",")
+test_names = [pdb + ".A" for pdb in pdbs]
 # Load the dataset
 dataset = data.StructureDataset(args.file_data, truncate=None, max_length=500)
 # Split the dataset
 dataset_indices = {d['name']:i for i,d in enumerate(dataset)}
-test_set = Subset(dataset, [dataset_indices[name] for name in test_names])
+data_subset = []
+for name in test_names:
+    try:
+        data_subset.append(dataset_indices[name])
+    except KeyError:
+        print("Skipping {}".format(name))
+        continue
+test_set = Subset(dataset, data_subset)
 loader_test = data.StructureLoader(test_set, batch_size=args.batch_tokens)
 print('Testing {} domains'.format(len(test_set)))
 
@@ -128,7 +138,6 @@ with torch.no_grad():
         log_probs = model(X, emb, lengths, mask)
         scores = _jtvae_scores(S, log_probs, mask)
         native_score = scores.cpu().data.numpy()[0]
-        print(scores)
 
         # Generate some sequences
         ali_file = base_folder + 'alignments/' + batch_clones[0]['name'] + '.fa'
@@ -161,7 +170,7 @@ with torch.no_grad():
                 frac_recovery = frac_recovery.cpu().data.numpy()
                 # print(mask)
                 # print(frac_recovery, torch.numel(mask), torch.sum(mask).cpu().data.numpy(), batch_clones[0]['name'])
-                print(frac_recovery)
+                print("Frac recovery", frac_recovery)
 
 # # Plot the results
 # files = glob.glob(base_folder + 'alignments/*.fa')
