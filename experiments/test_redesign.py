@@ -147,7 +147,7 @@ with torch.no_grad():
             f.write('>Native, score={}\n{}\n'.format(native_score, native_seq))
             for temp in temperatures:
                 for j in range(NUM_BATCHES):
-                    S_sample = model.sample(X, lengths, mask, temperature=temp)
+                    S_sample = model.sample(X, lengths, mask, temperature=temp, S_gt=S)
 
                     # Compute scores
                     emb = get_jtvae(S_sample)

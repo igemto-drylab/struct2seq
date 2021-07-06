@@ -110,7 +110,7 @@ class Struct2Seq(nn.Module):
         N_nodes = E_idx.size(1)
         ii = torch.arange(N_nodes)
         ii = ii.view((1, -1, 1))
-        mask = (E_idx - ii) < 0
+        mask = E_idx < ii       # see plots if confused
         mask = mask.type(torch.float32)
 
         # Debug 
@@ -118,8 +118,14 @@ class Struct2Seq(nn.Module):
         # mask_reduce = gather_edges(mask_scatter.unsqueeze(-1), E_idx).squeeze(-1)
         # plt.imshow(mask_reduce.data.numpy()[0,:,:])
         # plt.show()
-        # plt.imshow(mask.data.numpy()[0,:,:])
+        # plt.imshow(E_idx.data.cpu().numpy()[0,:,:])
         # plt.show()
+        # plt.savefig("/content/E_idx.png", dpi=350)
+        # plt.imshow(mask.data.cpu().numpy()[0,:,:])
+        # plt.show()
+        # plt.savefig("/content/mask.png", dpi=350)
+        # print(E_idx[0,100,:])
+        # print(mask[0,100,:])
         return mask
 
     # Only mask one index
@@ -127,7 +133,7 @@ class Struct2Seq(nn.Module):
         N_nodes = E_idx.size(1)
         ii = torch.arange(N_nodes)
         ii = ii.view((1, -1, 1))
-        mask = E_idx == ii
+        mask = E_idx != ii
         mask = mask.type(torch.float32)
         return mask
 
@@ -156,14 +162,15 @@ class Struct2Seq(nn.Module):
         h_ESV_encoder = cat_neighbors_nodes(h_V, h_ES_encoder, E_idx)
 
         # Decoder uses masked self-attention
-        mask_attend = self._autoregressive_mask(E_idx).unsqueeze(-1)
-        # mask_attend = self.bidirectional_mask(E_idx).unsqueeze(-1)
+        # mask_attend = self._autoregressive_mask(E_idx).unsqueeze(-1)
+        mask_attend = self.bidirectional_mask(E_idx).unsqueeze(-1)
         mask_1D = mask.view([mask.size(0), mask.size(1), 1, 1])
         mask_bw = mask_1D * mask_attend
         
         if self.forward_attention_decoder:
-            mask_fw = mask_1D * (1. - mask_attend)
-            h_ESV_encoder_fw = mask_fw * h_ESV_encoder
+            # mask_fw = mask_1D * (1. - mask_attend)
+            # h_ESV_encoder_fw = mask_fw * h_ESV_encoder
+            h_ESV_encoder_fw = mask_bw * h_ESV_encoder
         else:
             h_ESV_encoder_fw = 0
         for layer in self.decoder_layers:
@@ -178,7 +185,7 @@ class Struct2Seq(nn.Module):
 
         return logits / torch.norm(logits, dim=-1, keepdim=True)
 
-    def sample(self, X, L, mask=None, temperature=1.0):
+    def sample(self, X, L, mask=None, temperature=1.0, S_gt=None):
         """ Autoregressive decoding of a model """
          # Prepare node and edge embeddings
         V, E, E_idx = self.features(X, L, mask)
@@ -193,15 +200,21 @@ class Struct2Seq(nn.Module):
             h_V = layer(h_V, h_EV, mask_V=mask, mask_attend=mask_attend)
         
         # Decoder alternates masked self-attention
-        mask_attend = self._autoregressive_mask(E_idx).unsqueeze(-1)
-        # mask_attend = self.bidirectional_mask(E_idx).unsqueeze(-1)
+        # mask_attend = self._autoregressive_mask(E_idx).unsqueeze(-1)
+        mask_attend = self.bidirectional_mask(E_idx).unsqueeze(-1)
         mask_1D = mask.view([mask.size(0), mask.size(1), 1, 1])
         mask_bw = mask_1D * mask_attend
         mask_fw = mask_1D * (1. - mask_attend)
         N_batch, N_nodes = X.size(0), X.size(1)
         log_probs = torch.zeros((N_batch, N_nodes, 20))
+
+        if S_gt is None:
+            print("Sampling autoregressively")
+            S = torch.zeros((N_batch, N_nodes), dtype=torch.int64)
+        else:
+            print("Starting from seed sequence")
+
         h_S = torch.zeros_like(h_V)
-        S = torch.zeros((N_batch, N_nodes), dtype=torch.int64)
         h_V_stack = [h_V] + [torch.zeros_like(h_V) for _ in range(len(self.decoder_layers))]
         for t in range(N_nodes):
             # Hidden layers
@@ -209,7 +222,9 @@ class Struct2Seq(nn.Module):
             h_E_t = h_E[:,t:t+1,:,:]
             h_ES_t = cat_neighbors_nodes(h_S, h_E_t, E_idx_t)
             # Stale relational features for future states
-            h_ESV_encoder_t = mask_fw[:,t:t+1,:,:] * cat_neighbors_nodes(h_V, h_ES_t, E_idx_t)
+            # h_ESV_encoder_t = mask_fw[:,t:t+1,:,:] * cat_neighbors_nodes(h_V, h_ES_t, E_idx_t)
+            h_ESV_encoder_t = mask_bw[:,t:t+1,:,:] * cat_neighbors_nodes(h_V, h_ES_t, E_idx_t)
+
             for l, layer in enumerate(self.decoder_layers):
                 # Updated relational features for future states
                 h_ESV_decoder_t = cat_neighbors_nodes(h_V_stack[l], h_ES_t, E_idx_t)
