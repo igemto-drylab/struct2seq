@@ -137,7 +137,8 @@ class Struct2Seq(nn.Module):
         h_ESV_encoder = cat_neighbors_nodes(h_V, h_ES_encoder, E_idx)
 
         # Decoder uses masked self-attention
-        mask_attend = self._autoregressive_mask(E_idx).unsqueeze(-1)
+        # mask_attend = self._autoregressive_mask(E_idx).unsqueeze(-1)
+        mask_attend = self.bidirectional_mask(E_idx).unsqueeze(-1)
         mask_1D = mask.view([mask.size(0), mask.size(1), 1, 1])
         mask_bw = mask_1D * mask_attend
         

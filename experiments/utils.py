@@ -26,7 +26,10 @@ JTVAE = pca.transform(embeds)
 
 # Normalize between 0 and 1, ensure no negative entries
 JTVAE = (JTVAE - np.min(JTVAE, axis=0)) / (np.max(JTVAE, axis=0) - np.min(JTVAE, axis=0))
-JTVAE = torch.from_numpy(JTVAE)#.type(torch.cuda.FloatTensor)
+if torch.cuda.is_available():
+    JTVAE = torch.from_numpy(JTVAE).type(torch.cuda.FloatTensor)
+else:
+    JTVAE = torch.from_numpy(JTVAE).type(torch.FloatTensor)
 
 def get_args():
     parser = ArgumentParser(description='Structure to sequence modeling')
