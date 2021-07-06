@@ -37,6 +37,25 @@ def _jtvae_to_index(emb):
     S = neigh.predict(emb)
     return S.flatten()
 
+def closest_cosine(e):
+    best = -1e6
+    besti = 0
+    for i, jt in enumerate(JTVAE):
+        jt = jt.cpu().numpy().flatten()
+        e = e.flatten()
+        cossim = np.dot(jt, e) / (np.linalg.norm(jt) * np.linalg.norm(e))
+        if cossim > best:
+            besti = i
+            best = cossim
+
+    return besti
+
+def _jtvae_to_index(emb):
+    S = []
+    for e in emb.cpu():
+        S.append(closest_cosine(e))
+    return np.array(S)
+
 class Struct2Seq(nn.Module):
     def __init__(self, num_letters, node_features, edge_features,
         hidden_dim, num_encoder_layers=3, num_decoder_layers=3,
@@ -137,8 +156,8 @@ class Struct2Seq(nn.Module):
         h_ESV_encoder = cat_neighbors_nodes(h_V, h_ES_encoder, E_idx)
 
         # Decoder uses masked self-attention
-        # mask_attend = self._autoregressive_mask(E_idx).unsqueeze(-1)
-        mask_attend = self.bidirectional_mask(E_idx).unsqueeze(-1)
+        mask_attend = self._autoregressive_mask(E_idx).unsqueeze(-1)
+        # mask_attend = self.bidirectional_mask(E_idx).unsqueeze(-1)
         mask_1D = mask.view([mask.size(0), mask.size(1), 1, 1])
         mask_bw = mask_1D * mask_attend
         
@@ -174,8 +193,8 @@ class Struct2Seq(nn.Module):
             h_V = layer(h_V, h_EV, mask_V=mask, mask_attend=mask_attend)
         
         # Decoder alternates masked self-attention
-        # mask_attend = self._autoregressive_mask(E_idx).unsqueeze(-1)
-        mask_attend = self.bidirectional_mask(E_idx).unsqueeze(-1)
+        mask_attend = self._autoregressive_mask(E_idx).unsqueeze(-1)
+        # mask_attend = self.bidirectional_mask(E_idx).unsqueeze(-1)
         mask_1D = mask.view([mask.size(0), mask.size(1), 1, 1])
         mask_bw = mask_1D * mask_attend
         mask_fw = mask_1D * (1. - mask_attend)
